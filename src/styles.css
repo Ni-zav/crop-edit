@@ -19,6 +19,7 @@ body {
 
 button,
 .file-button,
+input,
 select {
   align-items: center;
   border: 1px solid #343c48;
@@ -38,9 +39,19 @@ select {
 
 button:hover,
 .file-button:hover,
+input:hover,
 select:hover {
   border-color: #5d6c82;
   background: #252d39;
+}
+
+input:focus,
+select:focus,
+button:focus-visible,
+.file-button:focus-within {
+  border-color: #2dd4bf;
+  outline: 2px solid rgba(45, 212, 191, 0.25);
+  outline-offset: 1px;
 }
 
 button svg,
@@ -208,11 +219,16 @@ h2 {
   gap: 6px;
 }
 
+input,
 select {
   appearance: none;
   display: block;
   min-height: 38px;
   width: 100%;
+}
+
+input::placeholder {
+  color: #7f8ea3;
 }
 
 dl {
@@ -343,6 +359,7 @@ canvas {
 
   button,
   .file-button,
+  input,
   select {
     min-height: 34px;
     padding: 6px 8px;
