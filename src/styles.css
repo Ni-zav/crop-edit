@@ -185,6 +185,10 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
+.segmented:has(#template4x4) {
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+}
+
 .segmented button.active {
   border-color: #fbbf24;
   background: #3f2c0d;

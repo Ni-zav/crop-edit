@@ -128,6 +128,7 @@ app.innerHTML = `
       <div class="control-group segmented" aria-label="Templates">
         <button id="template2x2" type="button" title="Apply 2x2 template (2)">${buttonIcon("template", "2x2", "2")}</button>
         <button id="template3x3" type="button" title="Apply 3x3 template (3)">${buttonIcon("template", "3x3", "3")}</button>
+        <button id="template4x4" type="button" title="Apply 4x4 template (4)">${buttonIcon("template", "4x4", "4")}</button>
       </div>
       <section class="details template-panel">
         <h2>Saved templates</h2>
@@ -929,6 +930,7 @@ document.querySelector("#applySnapHorizontal")!.addEventListener("click", () => 
 });
 document.querySelector("#template2x2")!.addEventListener("click", () => applyTemplate(2, 2, "2x2"));
 document.querySelector("#template3x3")!.addEventListener("click", () => applyTemplate(3, 3, "3x3"));
+document.querySelector("#template4x4")!.addEventListener("click", () => applyTemplate(4, 4, "4x4"));
 document.querySelector("#saveTemplate")!.addEventListener("click", saveCurrentTemplate);
 document.querySelector("#applySavedTemplate")!.addEventListener("click", applySavedTemplate);
 document.querySelector("#deleteSavedTemplate")!.addEventListener("click", deleteSavedTemplate);
@@ -1012,6 +1014,11 @@ window.addEventListener("keydown", (event) => {
   if (!event.ctrlKey && !event.metaKey && !event.altKey && key === "3") {
     event.preventDefault();
     applyTemplate(3, 3, "3x3");
+    return;
+  }
+  if (!event.ctrlKey && !event.metaKey && !event.altKey && key === "4") {
+    event.preventDefault();
+    applyTemplate(4, 4, "4x4");
     return;
   }
   if (!event.ctrlKey && !event.metaKey && !event.altKey && key === "e") {

@@ -13,7 +13,7 @@ The app is built with a TypeScript canvas frontend and a Rust/Tauri backend. The
 - Merge touching split segments back together.
 - Delete selected lines or line segments.
 - Snap an axis into 2 through 10 equal parts.
-- Apply quick templates: 2x2 and 3x3.
+- Apply quick templates: 2x2, 3x3, and 4x4.
 - Save custom split-line templates, search saved templates, and apply them to newly loaded images.
 - Select all regions or manually toggle region selection.
 - Export selected regions to `Pictures/Crop and Edit/`.
@@ -34,6 +34,7 @@ The app is built with a TypeScript canvas frontend and a Rust/Tauri backend. The
 | `E` | Export selected regions |
 | `2` | Apply 2x2 template |
 | `3` | Apply 3x3 template |
+| `4` | Apply 4x4 template |
 | `Ctrl+S` | Save current split layout as a template |
 | `Ctrl+Z` | Undo |
 | `Ctrl+Y` | Redo |
