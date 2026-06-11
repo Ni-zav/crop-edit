@@ -14,6 +14,7 @@ The app is built with a TypeScript canvas frontend and a Rust/Tauri backend. The
 - Delete selected lines or line segments.
 - Snap an axis into 2 through 10 equal parts.
 - Apply quick templates: 2x2 and 3x3.
+- Save custom split-line templates and apply them to newly loaded images.
 - Select all regions or manually toggle region selection.
 - Export selected regions to `Pictures/Crop and Edit/`.
 - Responsive layout with tool rail, settings panel, compact breakpoints, and canvas resizing.
@@ -96,6 +97,7 @@ This is the main application file. It contains:
 - Line/segment data model.
 - Undo and redo stacks.
 - Equal-gap snapping and templates.
+- Saved custom templates using normalized line positions in local browser storage.
 - Region detection and selection.
 - Calls to the Tauri export command.
 
@@ -204,6 +206,6 @@ On this Windows/sandboxed Codex environment, `vite build` may fail inside the sa
 
 - Exports are PNG only.
 - Animated formats are treated as still images by the browser/backend decode path.
-- The editor state is in memory only; there is no project save/load file format yet.
+- Saved templates persist locally in the app browser storage, but there is no project save/load file format yet.
 - Region selection keys are not assigned per individual region.
 

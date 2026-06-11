@@ -28,6 +28,21 @@ type Snapshot = {
   selectedRegions: string[];
 };
 
+type SavedTemplateLine = {
+  orientation: Orientation;
+  position: number;
+  start: number;
+  end: number;
+};
+
+type SavedTemplate = {
+  id: string;
+  name: string;
+  lines: SavedTemplateLine[];
+};
+
+const templateStorageKey = "crop-and-edit.templates.v1";
+
 const icons = {
   image: '<svg viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><circle cx="8" cy="10" r="1.5"/><path d="m21 16-5-5L5 19"/></svg>',
   vertical: '<svg viewBox="0 0 24 24"><path d="M12 4v16"/><path d="M7 4h10"/><path d="M7 20h10"/></svg>',
@@ -114,6 +129,15 @@ app.innerHTML = `
         <button id="template2x2" type="button" title="Apply 2x2 template (2)">${buttonIcon("template", "2x2", "2")}</button>
         <button id="template3x3" type="button" title="Apply 3x3 template (3)">${buttonIcon("template", "3x3", "3")}</button>
       </div>
+      <section class="details template-panel">
+        <h2>Saved templates</h2>
+        <select id="savedTemplateSelect" aria-label="Saved templates"></select>
+        <div class="control-group segmented">
+          <button id="saveTemplate" type="button" title="Save current split layout">${buttonIcon("template", "Save")}</button>
+          <button id="applySavedTemplate" type="button" title="Apply selected saved template">${buttonIcon("export", "Apply")}</button>
+        </div>
+        <button id="deleteSavedTemplate" type="button" title="Delete selected saved template">${buttonIcon("trash", "Delete saved")}</button>
+      </section>
       <div class="control-group">
         <button id="selectAll" type="button" title="Select all regions (Ctrl+A)">${buttonIcon("grid", "Select all", "Ctrl A")}</button>
         <button id="clearSelection" type="button">${buttonIcon("clear", "Clear regions")}</button>
@@ -141,6 +165,7 @@ const regionCountEl = document.querySelector<HTMLElement>("#regionCount")!;
 const selectedCountEl = document.querySelector<HTMLElement>("#selectedCount")!;
 const snapVerticalEl = document.querySelector<HTMLSelectElement>("#snapVertical")!;
 const snapHorizontalEl = document.querySelector<HTMLSelectElement>("#snapHorizontal")!;
+const savedTemplateSelectEl = document.querySelector<HTMLSelectElement>("#savedTemplateSelect")!;
 
 let sourceImage: HTMLImageElement | null = null;
 let sourceDataUrl = "";
@@ -160,6 +185,62 @@ let canvasDisplayHeight = 640;
 const uid = () => crypto.randomUUID();
 const clamp = (value: number, min: number, max: number) => Math.min(max, Math.max(min, value));
 const samePosition = (a: number, b: number) => Math.abs(a - b) < 0.5;
+
+function loadSavedTemplates(): SavedTemplate[] {
+  try {
+    const raw = localStorage.getItem(templateStorageKey);
+    if (!raw) return [];
+    const parsed = JSON.parse(raw);
+    if (!Array.isArray(parsed)) return [];
+    return parsed
+      .filter((item): item is SavedTemplate => {
+        return (
+          typeof item?.id === "string" &&
+          typeof item?.name === "string" &&
+          Array.isArray(item?.lines) &&
+          item.lines.every(
+            (line: SavedTemplateLine) =>
+              (line.orientation === "vertical" || line.orientation === "horizontal") &&
+              Number.isFinite(line.position) &&
+              Number.isFinite(line.start) &&
+              Number.isFinite(line.end),
+          )
+        );
+      })
+      .map((item) => ({ ...item, lines: item.lines.map((line) => ({ ...line })) }));
+  } catch {
+    return [];
+  }
+}
+
+function saveSavedTemplates(templates: SavedTemplate[]) {
+  localStorage.setItem(templateStorageKey, JSON.stringify(templates));
+}
+
+function updateSavedTemplateSelect() {
+  const templates = loadSavedTemplates();
+  const previousValue = savedTemplateSelectEl.value;
+  savedTemplateSelectEl.innerHTML = templates.length
+    ? templates.map((template) => `<option value="${template.id}">${escapeHtml(template.name)}</option>`).join("")
+    : '<option value="">No saved templates</option>';
+  if (templates.some((template) => template.id === previousValue)) {
+    savedTemplateSelectEl.value = previousValue;
+  }
+  savedTemplateSelectEl.disabled = templates.length === 0;
+}
+
+function escapeHtml(value: string) {
+  return value.replace(/[&<>"']/g, (character) => {
+    const entities: Record<string, string> = {
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;",
+    };
+    return entities[character];
+  });
+}
 
 function pushHistory() {
   history.push({
@@ -526,6 +607,76 @@ function applyTemplate(columnParts: number, rowParts: number, label: string) {
   render();
 }
 
+function normalizeLine(line: SplitLine): SavedTemplateLine {
+  const { width, height } = getImageSize();
+  const positionEnd = line.orientation === "vertical" ? width : height;
+  const segmentEnd = line.orientation === "vertical" ? height : width;
+  return {
+    orientation: line.orientation,
+    position: clamp(line.position / positionEnd, 0, 1),
+    start: clamp(line.start / segmentEnd, 0, 1),
+    end: clamp(line.end / segmentEnd, 0, 1),
+  };
+}
+
+function denormalizeLine(line: SavedTemplateLine): SplitLine {
+  const { width, height } = getImageSize();
+  const positionEnd = line.orientation === "vertical" ? width : height;
+  const segmentEnd = line.orientation === "vertical" ? height : width;
+  const position = Math.round(clamp(line.position, 0, 1) * positionEnd);
+  const start = Math.round(clamp(line.start, 0, 1) * segmentEnd);
+  const end = Math.round(clamp(line.end, 0, 1) * segmentEnd);
+  return {
+    id: uid(),
+    orientation: line.orientation,
+    position: clamp(position, 1, Math.max(1, positionEnd - 1)),
+    start: clamp(Math.min(start, end), 0, segmentEnd),
+    end: clamp(Math.max(start, end), 0, segmentEnd),
+  };
+}
+
+function saveCurrentTemplate() {
+  if (!sourceImage) return setStatus("Load an image before saving a template.");
+  if (!lines.length) return setStatus("Add crop lines before saving a template.");
+  const name = prompt("Template name");
+  const trimmedName = name?.trim();
+  if (!trimmedName) return;
+  const templates = loadSavedTemplates();
+  const existingIndex = templates.findIndex((template) => template.name.toLowerCase() === trimmedName.toLowerCase());
+  const saved: SavedTemplate = {
+    id: existingIndex >= 0 ? templates[existingIndex].id : uid(),
+    name: trimmedName,
+    lines: lines.map(normalizeLine),
+  };
+  if (existingIndex >= 0) templates[existingIndex] = saved;
+  else templates.push(saved);
+  saveSavedTemplates(templates);
+  updateSavedTemplateSelect();
+  savedTemplateSelectEl.value = saved.id;
+  setStatus(`${trimmedName} template saved.`);
+}
+
+function applySavedTemplate() {
+  if (!sourceImage) return setStatus("Load an image before applying a saved template.");
+  const template = loadSavedTemplates().find((item) => item.id === savedTemplateSelectEl.value);
+  if (!template) return setStatus("Choose a saved template first.");
+  pushHistory();
+  lines = template.lines.map(denormalizeLine).filter((line) => line.end - line.start > 0);
+  selectedRegions.clear();
+  selectedLineId = null;
+  setStatus(`${template.name} template applied.`);
+  render();
+}
+
+function deleteSavedTemplate() {
+  const templates = loadSavedTemplates();
+  const template = templates.find((item) => item.id === savedTemplateSelectEl.value);
+  if (!template) return setStatus("Choose a saved template first.");
+  saveSavedTemplates(templates.filter((item) => item.id !== template.id));
+  updateSavedTemplateSelect();
+  setStatus(`${template.name} template deleted.`);
+}
+
 function setTool(nextTool: Tool) {
   tool = nextTool;
   document.querySelector("#modeSelect")!.classList.toggle("active", tool === "select");
@@ -772,6 +923,9 @@ document.querySelector("#applySnapHorizontal")!.addEventListener("click", () => 
 });
 document.querySelector("#template2x2")!.addEventListener("click", () => applyTemplate(2, 2, "2x2"));
 document.querySelector("#template3x3")!.addEventListener("click", () => applyTemplate(3, 3, "3x3"));
+document.querySelector("#saveTemplate")!.addEventListener("click", saveCurrentTemplate);
+document.querySelector("#applySavedTemplate")!.addEventListener("click", applySavedTemplate);
+document.querySelector("#deleteSavedTemplate")!.addEventListener("click", deleteSavedTemplate);
 document.querySelector("#undo")!.addEventListener("click", undo);
 document.querySelector("#redo")!.addEventListener("click", redo);
 document.querySelector("#deleteLine")!.addEventListener("click", deleteSelectedLine);
@@ -854,4 +1008,5 @@ window.addEventListener("keydown", (event) => {
     void exportSelectedRegions();
   }
 });
+updateSavedTemplateSelect();
 render();

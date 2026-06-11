@@ -192,6 +192,15 @@ h2 {
   margin-top: 10px;
 }
 
+.template-panel {
+  display: grid;
+  gap: 8px;
+}
+
+.template-panel h2 {
+  margin-bottom: 2px;
+}
+
 .snap-panel label {
   color: #9fb0c5;
   display: grid;
