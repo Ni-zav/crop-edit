@@ -58,6 +58,7 @@ const icons = {
   export: '<svg viewBox="0 0 24 24"><path d="M12 3v12"/><path d="m7 10 5 5 5-5"/><path d="M5 21h14"/></svg>',
   snap: '<svg viewBox="0 0 24 24"><path d="M6 4v16"/><path d="M18 4v16"/><path d="M6 8h12"/><path d="M6 16h12"/></svg>',
   template: '<svg viewBox="0 0 24 24"><rect x="4" y="4" width="7" height="7"/><rect x="13" y="4" width="7" height="7"/><rect x="4" y="13" width="7" height="7"/><rect x="13" y="13" width="7" height="7"/></svg>',
+  check: '<svg viewBox="0 0 24 24"><path d="m5 12 4 4L19 6"/></svg>',
 };
 
 function buttonIcon(icon: keyof typeof icons, label: string, hotkey?: string) {
@@ -71,7 +72,7 @@ if (!app) throw new Error("App root missing");
 app.innerHTML = `
   <main class="shell">
     <header class="appbar">
-      <div>
+      <div class="brand">
         <h1>Crop and Edit</h1>
         <p class="status" id="status">Load an image to start.</p>
       </div>
@@ -81,24 +82,33 @@ app.innerHTML = `
       </div>
     </header>
     <aside class="tool-rail" aria-label="Tools">
-      <div class="control-group">
+      <section class="panel-section primary-tools" aria-label="File and line tools">
+        <h2>Build</h2>
+        <div class="control-group">
         <label class="file-button" title="Load image (Ctrl+O)">
           <input id="fileInput" type="file" accept="image/png,image/jpeg,image/webp,image/gif,image/bmp,image/tiff,.png,.jpg,.jpeg,.webp,.gif,.bmp,.tif,.tiff" />
           ${buttonIcon("image", "Load image", "Ctrl O")}
         </label>
         <button id="addVertical" type="button" title="Add vertical line (V)">${buttonIcon("vertical", "Add vertical", "V")}</button>
         <button id="addHorizontal" type="button" title="Add horizontal line (H)">${buttonIcon("horizontal", "Add horizontal", "H")}</button>
-      </div>
-      <div class="control-group segmented" aria-label="Mode">
+        </div>
+      </section>
+      <section class="panel-section" aria-label="Mode">
+        <h2>Mode</h2>
+        <div class="control-group segmented">
         <button id="modeSelect" type="button" class="active" title="Select mode (S)">${buttonIcon("cursor", "Select", "S")}</button>
         <button id="modeSplit" type="button" title="Split mode (T)">${buttonIcon("split", "Split", "T")}</button>
-      </div>
-      <div class="control-group">
+        </div>
+      </section>
+      <section class="panel-section" aria-label="Edit commands">
+        <h2>Edit</h2>
+        <div class="control-group compact-actions">
         <button id="undo" type="button" title="Undo (Ctrl+Z)">${buttonIcon("undo", "Undo", "Ctrl Z")}</button>
         <button id="redo" type="button" title="Redo (Ctrl+Y)">${buttonIcon("redo", "Redo", "Ctrl Y")}</button>
         <button id="mergeLine" type="button" title="Merge selected line (M)">${buttonIcon("merge", "Merge", "M")}</button>
         <button id="deleteLine" type="button" title="Delete selected line (Delete)">${buttonIcon("trash", "Delete", "Del")}</button>
-      </div>
+        </div>
+      </section>
     </aside>
     <section class="workspace">
       <div class="stage-wrap">
@@ -106,7 +116,7 @@ app.innerHTML = `
       </div>
     </section>
     <aside class="side-panel">
-      <section class="details">
+      <section class="panel-section">
         <h2>Snap equal</h2>
         <div class="snap-panel">
           <label>
@@ -125,27 +135,33 @@ app.innerHTML = `
           <button id="applySnapHorizontal" type="button">${buttonIcon("snap", "Apply horizontal")}</button>
         </div>
       </section>
-      <div class="control-group segmented three-up" aria-label="Templates">
-        <button id="template2x2" type="button" title="Apply 2x2 template (2)">${buttonIcon("template", "2x2", "2")}</button>
-        <button id="template3x3" type="button" title="Apply 3x3 template (3)">${buttonIcon("template", "3x3", "3")}</button>
-        <button id="template4x4" type="button" title="Apply 4x4 template (4)">${buttonIcon("template", "4x4", "4")}</button>
-      </div>
-      <section class="details template-panel">
-        <h2>Saved templates</h2>
+      <section class="panel-section">
+        <h2>Templates</h2>
+        <div class="control-group segmented three-up" aria-label="Templates">
+          <button id="template2x2" type="button" title="Apply 2x2 template (2)">${buttonIcon("template", "2x2", "2")}</button>
+          <button id="template3x3" type="button" title="Apply 3x3 template (3)">${buttonIcon("template", "3x3", "3")}</button>
+          <button id="template4x4" type="button" title="Apply 4x4 template (4)">${buttonIcon("template", "4x4", "4")}</button>
+        </div>
+      </section>
+      <section class="panel-section template-panel">
+        <h2>Saved</h2>
         <input id="templateSearch" type="search" placeholder="Search templates" aria-label="Search saved templates" />
         <select id="savedTemplateList" size="4" aria-label="Saved templates"></select>
         <div class="control-group segmented">
           <button id="saveTemplate" type="button" title="Save current split layout (Ctrl+S)">${buttonIcon("template", "Save", "Ctrl S")}</button>
-          <button id="applySavedTemplate" type="button" title="Apply selected saved template">${buttonIcon("export", "Apply")}</button>
+          <button id="applySavedTemplate" type="button" title="Apply selected saved template">${buttonIcon("check", "Apply")}</button>
         </div>
         <button id="deleteSavedTemplate" type="button" title="Delete selected saved template">${buttonIcon("trash", "Delete saved")}</button>
       </section>
-      <div class="control-group">
-        <button id="selectAll" type="button" title="Select all regions (Ctrl+A)">${buttonIcon("grid", "Select all", "Ctrl A")}</button>
-        <button id="clearSelection" type="button">${buttonIcon("clear", "Clear regions")}</button>
-        <button id="export" type="button" class="primary" title="Export selected (E)">${buttonIcon("export", "Export selected", "E")}</button>
-      </div>
-      <section class="details">
+      <section class="panel-section export-panel">
+        <h2>Regions</h2>
+        <div class="control-group">
+          <button id="selectAll" type="button" title="Select all regions (Ctrl+A)">${buttonIcon("grid", "Select all", "Ctrl A")}</button>
+          <button id="clearSelection" type="button">${buttonIcon("clear", "Clear regions")}</button>
+          <button id="export" type="button" class="primary" title="Export selected (E)">${buttonIcon("export", "Export selected", "E")}</button>
+        </div>
+      </section>
+      <section class="panel-section stats-panel">
         <h2>Selection</h2>
         <dl>
           <div><dt>Lines</dt><dd id="lineCount">0</dd></div>
