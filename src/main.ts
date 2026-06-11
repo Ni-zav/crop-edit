@@ -125,15 +125,15 @@ app.innerHTML = `
           <button id="applySnapHorizontal" type="button">${buttonIcon("snap", "Apply horizontal")}</button>
         </div>
       </section>
-      <div class="control-group segmented" aria-label="Templates">
+      <div class="control-group segmented three-up" aria-label="Templates">
         <button id="template2x2" type="button" title="Apply 2x2 template (2)">${buttonIcon("template", "2x2", "2")}</button>
         <button id="template3x3" type="button" title="Apply 3x3 template (3)">${buttonIcon("template", "3x3", "3")}</button>
         <button id="template4x4" type="button" title="Apply 4x4 template (4)">${buttonIcon("template", "4x4", "4")}</button>
       </div>
       <section class="details template-panel">
         <h2>Saved templates</h2>
-        <input id="templateSearch" list="savedTemplateOptions" type="search" placeholder="Search templates" aria-label="Search saved templates" />
-        <datalist id="savedTemplateOptions"></datalist>
+        <input id="templateSearch" type="search" placeholder="Search templates" aria-label="Search saved templates" />
+        <select id="savedTemplateList" size="4" aria-label="Saved templates"></select>
         <div class="control-group segmented">
           <button id="saveTemplate" type="button" title="Save current split layout (Ctrl+S)">${buttonIcon("template", "Save", "Ctrl S")}</button>
           <button id="applySavedTemplate" type="button" title="Apply selected saved template">${buttonIcon("export", "Apply")}</button>
@@ -168,7 +168,7 @@ const selectedCountEl = document.querySelector<HTMLElement>("#selectedCount")!;
 const snapVerticalEl = document.querySelector<HTMLSelectElement>("#snapVertical")!;
 const snapHorizontalEl = document.querySelector<HTMLSelectElement>("#snapHorizontal")!;
 const templateSearchEl = document.querySelector<HTMLInputElement>("#templateSearch")!;
-const savedTemplateOptionsEl = document.querySelector<HTMLDataListElement>("#savedTemplateOptions")!;
+const savedTemplateListEl = document.querySelector<HTMLSelectElement>("#savedTemplateList")!;
 
 let sourceImage: HTMLImageElement | null = null;
 let sourceDataUrl = "";
@@ -222,15 +222,23 @@ function saveSavedTemplates(templates: SavedTemplate[]) {
 
 function updateSavedTemplateSelect() {
   const templates = loadSavedTemplates();
-  const previousValue = templateSearchEl.value;
-  savedTemplateOptionsEl.innerHTML = templates
-    .map((template) => `<option value="${escapeHtml(template.name)}"></option>`)
+  const previousValue = savedTemplateListEl.value;
+  const query = templateSearchEl.value.trim().toLowerCase();
+  const visibleTemplates = templates.filter((template) => template.name.toLowerCase().includes(query));
+  savedTemplateListEl.innerHTML = visibleTemplates
+    .map((template) => `<option value="${template.id}">${escapeHtml(template.name)}</option>`)
     .join("");
-  if (templates.some((template) => template.name === previousValue)) {
-    templateSearchEl.value = previousValue;
+  if (visibleTemplates.some((template) => template.id === previousValue)) {
+    savedTemplateListEl.value = previousValue;
+  } else if (visibleTemplates.length) {
+    savedTemplateListEl.value = visibleTemplates[0].id;
   }
   templateSearchEl.disabled = templates.length === 0;
   templateSearchEl.placeholder = templates.length ? "Search templates" : "No saved templates";
+  savedTemplateListEl.disabled = visibleTemplates.length === 0;
+  if (!visibleTemplates.length) {
+    savedTemplateListEl.innerHTML = `<option value="">${templates.length ? "No matches" : "No saved templates"}</option>`;
+  }
 }
 
 function escapeHtml(value: string) {
@@ -655,15 +663,15 @@ function saveCurrentTemplate() {
   if (existingIndex >= 0) templates[existingIndex] = saved;
   else templates.push(saved);
   saveSavedTemplates(templates);
+  templateSearchEl.value = "";
   updateSavedTemplateSelect();
-  templateSearchEl.value = saved.name;
+  savedTemplateListEl.value = saved.id;
   setStatus(`${trimmedName} template saved.`);
 }
 
 function applySavedTemplate() {
   if (!sourceImage) return setStatus("Load an image before applying a saved template.");
-  const query = templateSearchEl.value.trim().toLowerCase();
-  const template = loadSavedTemplates().find((item) => item.name.toLowerCase() === query);
+  const template = loadSavedTemplates().find((item) => item.id === savedTemplateListEl.value);
   if (!template) return setStatus("Choose a saved template first.");
   pushHistory();
   lines = template.lines.map(denormalizeLine).filter((line) => line.end - line.start > 0);
@@ -675,11 +683,9 @@ function applySavedTemplate() {
 
 function deleteSavedTemplate() {
   const templates = loadSavedTemplates();
-  const query = templateSearchEl.value.trim().toLowerCase();
-  const template = templates.find((item) => item.name.toLowerCase() === query);
+  const template = templates.find((item) => item.id === savedTemplateListEl.value);
   if (!template) return setStatus("Choose a saved template first.");
   saveSavedTemplates(templates.filter((item) => item.id !== template.id));
-  templateSearchEl.value = "";
   updateSavedTemplateSelect();
   setStatus(`${template.name} template deleted.`);
 }
@@ -934,6 +940,8 @@ document.querySelector("#template4x4")!.addEventListener("click", () => applyTem
 document.querySelector("#saveTemplate")!.addEventListener("click", saveCurrentTemplate);
 document.querySelector("#applySavedTemplate")!.addEventListener("click", applySavedTemplate);
 document.querySelector("#deleteSavedTemplate")!.addEventListener("click", deleteSavedTemplate);
+templateSearchEl.addEventListener("input", updateSavedTemplateSelect);
+savedTemplateListEl.addEventListener("dblclick", applySavedTemplate);
 document.querySelector("#undo")!.addEventListener("click", undo);
 document.querySelector("#redo")!.addEventListener("click", redo);
 document.querySelector("#deleteLine")!.addEventListener("click", deleteSelectedLine);

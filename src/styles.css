@@ -185,7 +185,7 @@ h2 {
   grid-template-columns: repeat(2, minmax(0, 1fr));
 }
 
-.segmented:has(#template4x4) {
+.three-up {
   grid-template-columns: repeat(3, minmax(0, 1fr));
 }
 
@@ -229,6 +229,20 @@ select {
   display: block;
   min-height: 38px;
   width: 100%;
+}
+
+select[size] {
+  align-items: stretch;
+  cursor: default;
+  height: 116px;
+  overflow: auto;
+  padding: 4px;
+}
+
+select[size] option {
+  border-radius: 5px;
+  color: #edf3fb;
+  padding: 7px 8px;
 }
 
 input::placeholder {
