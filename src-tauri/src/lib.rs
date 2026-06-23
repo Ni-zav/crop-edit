@@ -1,6 +1,6 @@
 use base64::{engine::general_purpose, Engine as _};
 use chrono::Local;
-use image::GenericImageView;
+use image::{DynamicImage, GenericImageView, Rgba, RgbaImage};
 use serde::{Deserialize, Serialize};
 use std::{fs, io::Cursor, path::PathBuf};
 
@@ -20,6 +20,8 @@ struct CropRegion {
 struct ExportRequest {
     image_data_url: String,
     regions: Vec<CropRegion>,
+    border_width: u32,
+    border_color: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -56,7 +58,11 @@ fn export_regions(request: ExportRequest) -> Result<ExportResponse, String> {
         {
             return Err("One crop region is outside the source image".to_string());
         }
-        let cropped = image.crop_imm(region.x, region.y, region.width, region.height);
+        let cropped = add_border(
+            image.crop_imm(region.x, region.y, region.width, region.height),
+            request.border_width,
+            &request.border_color,
+        )?;
         let filename = format!("{}-x{}y{}.png", stamp, region.coord_x, region.coord_y);
         let path = folder.join(&filename);
         let mut png_bytes = Vec::new();
@@ -71,6 +77,46 @@ fn export_regions(request: ExportRequest) -> Result<ExportResponse, String> {
         folder: folder.to_string_lossy().to_string(),
         files,
     })
+}
+
+fn add_border(image: DynamicImage, width: u32, color: &str) -> Result<DynamicImage, String> {
+    if width == 0 {
+        return Ok(image);
+    }
+    if width > 1000 {
+        return Err("Border width must be 1000 pixels or less".to_string());
+    }
+    let color = match color {
+        "white" => Rgba([255, 255, 255, 255]),
+        "black" => Rgba([0, 0, 0, 255]),
+        _ => return Err("Border color must be white or black".to_string()),
+    };
+    let doubled = width.checked_mul(2).ok_or("Border width is too large")?;
+    let output_width = image
+        .width()
+        .checked_add(doubled)
+        .ok_or("Bordered image is too wide")?;
+    let output_height = image
+        .height()
+        .checked_add(doubled)
+        .ok_or("Bordered image is too tall")?;
+    let mut output = RgbaImage::from_pixel(output_width, output_height, color);
+    image::imageops::overlay(&mut output, &image.to_rgba8(), width.into(), width.into());
+    Ok(DynamicImage::ImageRgba8(output))
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn adds_border_on_every_side() {
+        let source = DynamicImage::ImageRgba8(RgbaImage::from_pixel(2, 3, Rgba([255, 0, 0, 255])));
+        let result = add_border(source, 1, "black").unwrap().to_rgba8();
+        assert_eq!(result.dimensions(), (4, 5));
+        assert_eq!(result.get_pixel(0, 0), &Rgba([0, 0, 0, 255]));
+        assert_eq!(result.get_pixel(1, 1), &Rgba([255, 0, 0, 255]));
+    }
 }
 
 fn pictures_dir() -> Result<PathBuf, String> {

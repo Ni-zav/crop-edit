@@ -155,6 +155,23 @@ app.innerHTML = `
       </section>
       <section class="panel-section export-panel">
         <h2>Regions</h2>
+        <div class="border-controls">
+          <label class="toggle-control">
+            <input id="borderEnabled" type="checkbox" />
+            Add border
+          </label>
+          <label>
+            Width (px)
+            <input id="borderWidth" type="number" min="1" max="1000" value="10" disabled />
+          </label>
+          <label>
+            Color
+            <select id="borderColor" disabled>
+              <option value="white">White</option>
+              <option value="black">Black</option>
+            </select>
+          </label>
+        </div>
         <div class="control-group">
           <button id="selectAll" type="button" title="Select all regions (Ctrl+A)">${buttonIcon("grid", "Select all", "Ctrl A")}</button>
           <button id="clearSelection" type="button">${buttonIcon("clear", "Clear regions")}</button>
@@ -185,6 +202,9 @@ const snapVerticalEl = document.querySelector<HTMLSelectElement>("#snapVertical"
 const snapHorizontalEl = document.querySelector<HTMLSelectElement>("#snapHorizontal")!;
 const templateSearchEl = document.querySelector<HTMLInputElement>("#templateSearch")!;
 const savedTemplateListEl = document.querySelector<HTMLSelectElement>("#savedTemplateList")!;
+const borderEnabledEl = document.querySelector<HTMLInputElement>("#borderEnabled")!;
+const borderWidthEl = document.querySelector<HTMLInputElement>("#borderWidth")!;
+const borderColorEl = document.querySelector<HTMLSelectElement>("#borderColor")!;
 
 let sourceImage: HTMLImageElement | null = null;
 let sourceDataUrl = "";
@@ -758,10 +778,13 @@ async function exportSelectedRegions() {
   if (!sourceImage || !sourceDataUrl) return setStatus("Load an image before exporting.");
   const regions = getRegions().filter((region) => selectedRegions.has(region.key));
   if (!regions.length) return setStatus("Select at least one crop region before exporting.");
+  const borderWidth = borderEnabledEl.checked ? clamp(Number.parseInt(borderWidthEl.value, 10) || 0, 1, 1000) : 0;
   try {
     const response = await invoke<{ folder: string; files: string[] }>("export_regions", {
       request: {
         imageDataUrl: sourceDataUrl,
+        borderWidth,
+        borderColor: borderColorEl.value,
         regions: regions.map((region) => ({
           x: region.x,
           y: region.y,
@@ -967,6 +990,9 @@ document.querySelector("#clearSelection")!.addEventListener("click", clearRegion
 document.querySelector("#modeSelect")!.addEventListener("click", () => setTool("select"));
 document.querySelector("#modeSplit")!.addEventListener("click", () => setTool("split"));
 document.querySelector("#export")!.addEventListener("click", exportSelectedRegions);
+borderEnabledEl.addEventListener("change", () => {
+  borderWidthEl.disabled = borderColorEl.disabled = !borderEnabledEl.checked;
+});
 
 window.addEventListener("resize", render);
 new ResizeObserver(render).observe(document.querySelector<HTMLElement>(".stage-wrap")!);
